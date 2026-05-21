@@ -39,23 +39,40 @@ namespace ComReaderModule
             // Start a thread to read the RAW binary stream
             Task.Run(() => ReadStream(_snifferProcess.StandardOutput.BaseStream));
         }
+        public void Stop()
+        {
+            _isRunning = false;
+            if (_snifferProcess != null && !_snifferProcess.HasExited)
+            {
+                _snifferProcess.Kill();
+                _snifferProcess.Dispose();
+            }
+            Console.WriteLine("Sniffer stopped.");
+        }
 
         private void ReadStream(Stream stream)
         {
+            byte[] globalHeader = new byte[24]; // PCAP global header
+            stream.Read(globalHeader, 0, 24);
 
-            byte[] buffer = new byte[4096];
+            byte[] packetHeader = new byte[16];
+
             while (_isRunning && !_snifferProcess.HasExited)
             {
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead > 0)
+                int headerRead = stream.Read(packetHeader, 0, 16);
+                if (headerRead < 16) break;
+
+                // Parse packet header
+                uint capturedLen = BitConverter.ToUInt32(packetHeader, 8);
+
+                if (capturedLen > 0 && capturedLen < 65535)
                 {
-                    // Pass the raw chunk to your processing logic
-                    byte[] chunk = new byte[bytesRead];
-                    Buffer.BlockCopy(buffer, 0, chunk, 0, bytesRead);
-                    ProcessUsbData(chunk);
-                    //FindIndexBit(chunk);
+                    byte[] packetData = new byte[capturedLen];
+                    stream.Read(packetData, 0, (int)capturedLen);
+                    ProcessUsbData(packetData);
                 }
             }
+
         }
 
         private void FindIndexBit(byte[] data)
@@ -79,25 +96,97 @@ namespace ComReaderModule
             }
         }
 
-        private int _currentBaud = 0;
         private void ProcessUsbData(byte[] data)
         {
             ////Print it to the console: We use Write (not WriteLine) to show exactly how it arrives
-            string junk = Encoding.GetEncoding("ISO-8859-1").GetString(data);
-            Console.Write(junk);
-            
+            //string junk = Encoding.GetEncoding("ISO-8859-1").GetString(data);
+            // Console.Write(junk);
+            string extracted = ExtractSerialString(data);
 
-        }
-
-        public void Stop()
-        {
-            _isRunning = false;
-            if (_snifferProcess != null && !_snifferProcess.HasExited)
+            if (IsValidSerialData(extracted))
             {
-                _snifferProcess.Kill();
-                _snifferProcess.Dispose();
+                Console.WriteLine($"[RX/TX] {extracted}");
             }
-            Console.WriteLine("Sniffer stopped.");
+
         }
+
+        private bool IsValidSerialData(string data)
+        {
+            if (string.IsNullOrWhiteSpace(data))
+                return false;
+
+            // Filter 1: Minimum length - USB control packets are tiny (4-8 chars)
+            // Your serial data should be longer
+            if (data.Length < 5)
+                return false;
+
+            // Filter 2: Exclude pure control/status strings
+            // These are typically all uppercase single words or acronyms
+            if (data.Length <= 8 && data.All(c => char.IsUpper(c) || char.IsDigit(c)))
+                return false;
+
+            // Filter 3: Require at least one lowercase letter OR a digit
+            // (assumes your serial protocol has mixed case or numbers)
+            if (!data.Any(c => char.IsLower(c) || char.IsDigit(c)))
+                return false;
+
+            return true;
+        }
+
+        private string ExtractSerialString(byte[] data)
+        {
+            // Strategy: Find the longest contiguous sequence of printable ASCII
+            // This avoids header/footer junk
+
+            var sb = new StringBuilder();
+            int longestStart = 0;
+            int longestLength = 0;
+            int currentStart = 0;
+            int currentLength = 0;
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                byte b = data[i];
+
+                // Printable ASCII (32-126) + CR (13) + LF (10) + Tab (9)
+                if ((b >= 32 && b <= 126) || b == 13 || b == 10 || b == 9)
+                {
+                    if (currentLength == 0)
+                        currentStart = i;
+
+                    currentLength++;
+                }
+                else
+                {
+                    // Non-printable byte breaks the string
+                    if (currentLength > longestLength)
+                    {
+                        longestStart = currentStart;
+                        longestLength = currentLength;
+                    }
+                    currentLength = 0;
+                }
+            }
+
+            // Check the last sequence
+            if (currentLength > longestLength)
+            {
+                longestStart = currentStart;
+                longestLength = currentLength;
+            }
+
+            // Extract the longest clean sequence (usually the actual data)
+            if (longestLength > 2) // Ignore very short strings
+            {
+                byte[] payload = new byte[longestLength];
+                Buffer.BlockCopy(data, longestStart, payload, 0, longestLength);
+                return Encoding.ASCII.GetString(payload).Trim();
+            }
+
+            return null;
+        }
+
+
+
     }
 }
