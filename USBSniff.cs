@@ -74,7 +74,7 @@ namespace ComReaderModule
             }
 
         }
-
+        /*
         private void FindIndexBit(byte[] data)
         {
             string rawText = Encoding.ASCII.GetString(data);
@@ -95,7 +95,9 @@ namespace ComReaderModule
                 }
             }
         }
+        */
 
+        DataLogging datalog = new();
         private void ProcessUsbData(byte[] data)
         {
             ////Print it to the console: We use Write (not WriteLine) to show exactly how it arrives
@@ -105,37 +107,23 @@ namespace ComReaderModule
 
             if (IsValidSerialData(extracted))
             {
-                Console.WriteLine($"[RX/TX] {extracted}");
+                Console.Write(extracted);
+
+                datalog.LogData(extracted);
             }
 
         }
 
         private bool IsValidSerialData(string data)
         {
-            if (string.IsNullOrWhiteSpace(data))
-                return false;
 
-            // Filter 1: Minimum length - USB control packets are tiny (4-8 chars)
-            // Your serial data should be longer
-            if (data.Length < 5)
-                return false;
+            return !string.IsNullOrEmpty(data) && !data.StartsWith("USB");
 
-            // Filter 2: Exclude pure control/status strings
-            // These are typically all uppercase single words or acronyms
-            if (data.Length <= 8 && data.All(c => char.IsUpper(c) || char.IsDigit(c)))
-                return false;
-
-            // Filter 3: Require at least one lowercase letter OR a digit
-            // (assumes your serial protocol has mixed case or numbers)
-            if (!data.Any(c => char.IsLower(c) || char.IsDigit(c)))
-                return false;
-
-            return true;
         }
 
         private string ExtractSerialString(byte[] data)
         {
-            // Strategy: Find the longest contiguous sequence of printable ASCII
+            // Strategy: Find the longest contiguous sequence of printable ASCII 
             // This avoids header/footer junk
 
             var sb = new StringBuilder();
@@ -176,7 +164,7 @@ namespace ComReaderModule
             }
 
             // Extract the longest clean sequence (usually the actual data)
-            if (longestLength > 2) // Ignore very short strings
+            if (longestLength > 1) // Ignore very short strings
             {
                 byte[] payload = new byte[longestLength];
                 Buffer.BlockCopy(data, longestStart, payload, 0, longestLength);
