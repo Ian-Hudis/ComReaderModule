@@ -7,7 +7,7 @@ namespace ComReaderModule
 {
     internal class DataLogging
     {
-        private string _currentLogPath;
+        private string _currentLogPath = "";
 
         private void InitializeLogFile()
         {
@@ -61,12 +61,10 @@ namespace ComReaderModule
             try
             {
                 // Open the file with options that force it to bypass cache and write instantly
-                using (FileStream fs = new FileStream(_currentLogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                using (StreamWriter sw = new StreamWriter(fs))
-                {
-                    sw.AutoFlush = true; // Crucial: forces Windows to write to disk immediately
-                    sw.Write(data);
-                }
+                using FileStream fs = new(_currentLogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                using StreamWriter sw = new(fs);
+                sw.AutoFlush = true; // Crucial: forces Windows to write to disk immediately
+                sw.Write(data);
             }
             catch (Exception ex)
             {

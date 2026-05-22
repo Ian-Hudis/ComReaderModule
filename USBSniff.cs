@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -9,21 +10,25 @@ namespace ComReaderModule
 {
     public class USBSniff
     {
-        private Process _snifferProcess;
+        private Process _snifferProcess = new();
         private readonly StringBuilder _lineBuffer = new();
         private bool _isRunning;
 
         public void Start()
         {
+
+            ConfigerationData configdata = ReadConfigFile();
+
             Console.WriteLine("Starting autonomous USB sniffer...");
 
             _snifferProcess = new Process();
+
             // Use the full literal path
-            _snifferProcess.StartInfo.FileName = @"C:\Program Files\USBPcap\USBPcapCMD.exe";
+            _snifferProcess.StartInfo.FileName = configdata.toolPath;
 
             // -A is the "All devices" flag that fixed your manual test
             // -o - pipes the raw pcap data to the StandardOutput stream
-            _snifferProcess.StartInfo.Arguments = @"-d \\.\USBPcap1 -A -o -";
+            _snifferProcess.StartInfo.Arguments = @"-d \\.\"+ configdata.toolID + " -A -o -";
 
             _snifferProcess.StartInfo.UseShellExecute = false;
             _snifferProcess.StartInfo.RedirectStandardOutput = true;
@@ -31,7 +36,8 @@ namespace ComReaderModule
             _snifferProcess.StartInfo.CreateNoWindow = true;
 
             // Important: Set the working directory to the tool's folder
-            _snifferProcess.StartInfo.WorkingDirectory = @"C:\Program Files\USBPcap\";
+            //_snifferProcess.StartInfo.WorkingDirectory = @"C:\Program Files\USBPcap\";
+            _snifferProcess.StartInfo.WorkingDirectory = configdata.location;
 
             _snifferProcess.Start();
             _isRunning = true;
@@ -53,7 +59,7 @@ namespace ComReaderModule
         private void ReadStream(Stream stream)
         {
             byte[] globalHeader = new byte[24]; // PCAP global header
-            stream.Read(globalHeader, 0, 24);
+            stream.ReadExactly(globalHeader, 0, 24);
 
             byte[] packetHeader = new byte[16];
 
@@ -68,12 +74,67 @@ namespace ComReaderModule
                 if (capturedLen > 0 && capturedLen < 65535)
                 {
                     byte[] packetData = new byte[capturedLen];
-                    stream.Read(packetData, 0, (int)capturedLen);
+                    stream.ReadExactly(packetData, 0, (int)capturedLen);
                     ProcessUsbData(packetData);
                 }
             }
 
         }
+
+        private struct ConfigerationData
+        {
+            public string toolPath;
+            public string toolID;
+            public string location;
+        }
+
+        private static ConfigerationData ReadConfigFile()
+        {
+            ConfigerationData inputdata = new() // make object with defaults, in case config file is missing or malformed
+            {
+                location = @"C:\Program Files\USBPcap\", // default location
+                toolPath = @"C:\Program Files\USBPcap\USBPcapCMD.exe", // default location
+                toolID = "USBPcap1" // default ID
+            };
+
+            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
+            if (File.Exists(configPath))
+            {
+                try
+                {
+                    var config = File.ReadLines(configPath)
+                        .Select(line => line.Trim())
+                        .Where(static line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith(';'))
+                        .Select(line => line.Split('=', 2))
+                        .Where(parts => parts.Length == 2)
+                        .ToDictionary(parts => parts[0].Trim(), parts => parts[1].Trim().Trim('"').Trim(';').Trim('"'));
+
+                    if (config.TryGetValue("USBPcap_Location", out var customPath))
+                    {
+                        inputdata.toolPath = customPath;
+                        if (customPath != null)
+                        {
+                            inputdata.location = Path.GetDirectoryName(customPath);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Custom path is null, using default location.");
+                        }
+                    }
+                    if (config.TryGetValue("USBID", out var customId))
+                    {
+                        inputdata.toolID = customId;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error reading Config.ini, using defaults: {ex.Message}");
+                }
+            }
+
+            return inputdata;
+        }
+
         /*
         private void FindIndexBit(byte[] data)
         {
@@ -97,13 +158,13 @@ namespace ComReaderModule
         }
         */
 
-        DataLogging datalog = new();
+        private readonly DataLogging datalog = new();
         private void ProcessUsbData(byte[] data)
         {
             ////Print it to the console: We use Write (not WriteLine) to show exactly how it arrives
             //string junk = Encoding.GetEncoding("ISO-8859-1").GetString(data);
             // Console.Write(junk);
-            string extracted = ExtractSerialString(data);
+            string extracted = ExtractSerialString(data, new StringBuilder());
 
             if (IsValidSerialData(extracted))
             {
@@ -114,19 +175,14 @@ namespace ComReaderModule
 
         }
 
-        private bool IsValidSerialData(string data)
+        private static bool IsValidSerialData(string data)
         {
-
             return !string.IsNullOrEmpty(data) && !data.StartsWith("USB");
-
         }
 
-        private string ExtractSerialString(byte[] data)
+        private static string ExtractSerialString(byte[] data, StringBuilder sb)
         {
-            // Strategy: Find the longest contiguous sequence of printable ASCII 
-            // This avoids header/footer junk
-
-            var sb = new StringBuilder();
+            ArgumentNullException.ThrowIfNull(sb);
             int longestStart = 0;
             int longestLength = 0;
             int currentStart = 0;
@@ -171,10 +227,8 @@ namespace ComReaderModule
                 return Encoding.ASCII.GetString(payload).Trim();
             }
 
-            return null;
+            return "";
         }
-
-
 
     }
 }
