@@ -68,7 +68,7 @@ namespace ComReaderModule
             }
             catch (Exception ex)
             {
-                // If it's failing to write, this will tell us why (e.g., Permissions)
+                // If it's failing to write, this will say why.
                 Console.WriteLine($"\n[LOG ERROR] Failed to write data: {ex.Message}");
             }
         }
