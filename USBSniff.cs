@@ -44,9 +44,32 @@ namespace ComReaderModule
 
             // Start a thread to read the RAW binary stream
             Task.Run(() => ReadStream(_snifferProcess.StandardOutput.BaseStream));
+
+
+            Task.Run(() => ReadErrorStream(_snifferProcess.StandardError));
         }
-        public void Stop()
+
+        private void ReadErrorStream(StreamReader errorReader)
         {
+            try
+            {
+                while (_isRunning && !_snifferProcess.HasExited)
+                {
+                    string? line = errorReader.ReadLine();
+                    if (!string.IsNullOrEmpty(line))
+                    {
+                        Console.WriteLine($"[USBPcap Error]: {line}");
+                    }
+                }
+            }
+            catch
+            {
+                // Suppress reader thread disposal exceptions on shutdown
+            }
+        }
+
+        public void Stop()
+        { 
             _isRunning = false;
             if (_snifferProcess != null && !_snifferProcess.HasExited)
             {
@@ -161,7 +184,6 @@ namespace ComReaderModule
         private readonly DataLogging datalog = new();
         private void ProcessUsbData(byte[] data)
         {
-            ////Print it to the console: We use Write (not WriteLine) to show exactly how it arrives
             //string junk = Encoding.GetEncoding("ISO-8859-1").GetString(data);
             // Console.Write(junk);
             string extracted = ExtractSerialString(data, new StringBuilder());
@@ -220,7 +242,7 @@ namespace ComReaderModule
             }
 
             // Extract the longest clean sequence (usually the actual data)
-            if (longestLength > 1) // Ignore very short strings
+            if (longestLength > 2) // Ignore very short strings
             {
                 byte[] payload = new byte[longestLength];
                 Buffer.BlockCopy(data, longestStart, payload, 0, longestLength);

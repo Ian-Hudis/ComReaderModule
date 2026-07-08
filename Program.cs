@@ -1,6 +1,10 @@
 ﻿using SharpPcap;
 using SharpPcap.LibPcap;
 
+/// Ian Hudis
+/// 5/21/2026
+/// This is open source software, feel free to use and modify as you see fit. 
+
 namespace ComReaderModule
 {
 #pragma warning disable IDE0060 // Remove unused parameter
