@@ -3,8 +3,10 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ComReaderModule
 {
@@ -13,6 +15,7 @@ namespace ComReaderModule
         private Process _snifferProcess = new();
         private readonly StringBuilder _lineBuffer = new();
         private bool _isRunning;
+
 
         public void Start()
         {
@@ -49,6 +52,7 @@ namespace ComReaderModule
             Task.Run(() => ReadErrorStream(_snifferProcess.StandardError));
         }
 
+
         private void ReadErrorStream(StreamReader errorReader)
         {
             try
@@ -68,6 +72,7 @@ namespace ComReaderModule
             }
         }
 
+
         public void Stop()
         { 
             _isRunning = false;
@@ -79,9 +84,10 @@ namespace ComReaderModule
             Console.WriteLine("Sniffer stopped.");
         }
 
+
         private void ReadStream(Stream stream)
         {
-            byte[] globalHeader = new byte[24]; // PCAP global header
+            byte[] globalHeader = new byte[24];
             stream.ReadExactly(globalHeader, 0, 24);
 
             byte[] packetHeader = new byte[16];
@@ -91,19 +97,46 @@ namespace ComReaderModule
                 int headerRead = stream.Read(packetHeader, 0, 16);
                 if (headerRead < 16) break;
 
-                // Parse packet header
                 uint capturedLen = BitConverter.ToUInt32(packetHeader, 8);
 
                 if (capturedLen > 0 && capturedLen < 65535)
                 {
                     byte[] packetData = new byte[capturedLen];
                     stream.ReadExactly(packetData, 0, (int)capturedLen);
-                    ProcessUsbData(packetData);
+
+                    // 1. Unmask the direction using the endpoint flag bit
+                    DataDirection direction = DataDirection.PcToMachine;
+                    if (packetData.Length > 16)
+                    {
+                        bool isIncoming = (packetData[16] & 0x01) == 1;
+                        direction = isIncoming ? DataDirection.MachineToPc : DataDirection.PcToMachine;
+                    }
+
+                    // 2. Use the DataConstructor helper to extract the precise payload window
+                    byte[] rawPayload = DataConstructor.ExtractRawPayload(packetData);
+                    if (rawPayload == null || rawPayload.Length == 0) continue;
+
+                    // 3. Convert only the valid payload bytes into text
+                    StringBuilder sb = new();
+                    foreach (byte b in rawPayload)
+                    {
+                        // Only pull out genuine human-readable text and layout spacing
+                        if ((b >= 32 && b <= 126) || b == 13 || b == 10 || b == 9)
+                        {
+                            sb.Append((char)b);
+                        }
+                    }
+
+                    string extractedText = sb.ToString().Trim();
+
+                    // 4. Print clean lines matching Hercules formatting
+                    if (!string.IsNullOrWhiteSpace(extractedText))
+                    {
+                        PrintAndLogMessage(extractedText, direction);
+                    }
                 }
             }
-
         }
-
         private struct ConfigerationData
         {
             public string toolPath;
@@ -137,7 +170,9 @@ namespace ComReaderModule
                         inputdata.toolPath = customPath;
                         if (customPath != null)
                         {
+#pragma warning disable CS8601 // Possible null reference assignment.
                             inputdata.location = Path.GetDirectoryName(customPath);
+#pragma warning restore CS8601 // Possible null reference assignment.
                         }
                         else
                         {
@@ -181,75 +216,46 @@ namespace ComReaderModule
         }
         */
 
-        private readonly DataLogging datalog = new();
-        private void ProcessUsbData(byte[] data)
+        private readonly DataLogging datalog = new(); // this is the object for storing the data
+
+
+        public enum DataDirection
         {
-            //string junk = Encoding.GetEncoding("ISO-8859-1").GetString(data);
-            // Console.Write(junk);
-            string extracted = ExtractSerialString(data, new StringBuilder());
-
-            if (IsValidSerialData(extracted))
-            {
-                Console.Write(extracted);
-
-                datalog.LogData(extracted);
-            }
-
+            PcToMachine,
+            MachineToPc
         }
 
-        private static bool IsValidSerialData(string data)
+        private DataDirection? lastDirection = null;
+
+        private void PrintAndLogMessage(string message, DataDirection direction) // log the data
         {
-            return !string.IsNullOrEmpty(data) && !data.StartsWith("USB");
-        }
+            string label = direction == DataDirection.PcToMachine ? "[PC] " : "[MACHINE] "; // sets the prefix
+            ConsoleColor color = direction == DataDirection.PcToMachine ? ConsoleColor.Magenta : ConsoleColor.Gray; // sets terminal color
 
-        private static string ExtractSerialString(byte[] data, StringBuilder sb)
-        {
-            ArgumentNullException.ThrowIfNull(sb);
-            int longestStart = 0;
-            int longestLength = 0;
-            int currentStart = 0;
-            int currentLength = 0;
+            Console.ForegroundColor = color;
 
-            for (int i = 0; i < data.Length; i++)
+            if (lastDirection == null)
             {
-                byte b = data[i];
+                // First packet ever received: print the initial prefix label
+                Console.Write(label);
+                datalog.LogData(label);
+            }
+            else if (direction != lastDirection)
+            {
+                // Direction changed: wrap up the previous sender's line, break down, and print the new label prefix
+                Console.WriteLine();
+                datalog.LogData(Environment.NewLine);
 
-                // Printable ASCII (32-126) + CR (13) + LF (10) + Tab (9)
-                if ((b >= 32 && b <= 126) || b == 13 || b == 10 || b == 9)
-                {
-                    if (currentLength == 0)
-                        currentStart = i;
-
-                    currentLength++;
-                }
-                else
-                {
-                    // Non-printable byte breaks the string
-                    if (currentLength > longestLength)
-                    {
-                        longestStart = currentStart;
-                        longestLength = currentLength;
-                    }
-                    currentLength = 0;
-                }
+                Console.Write(label);
+                datalog.LogData(label);
             }
 
-            // Check the last sequence
-            if (currentLength > longestLength)
-            {
-                longestStart = currentStart;
-                longestLength = currentLength;
-            }
+            // 2. Continuous Writing: Always write the actual message data block text
+            Console.Write(message);
+            datalog.LogData(message);
 
-            // Extract the longest clean sequence (usually the actual data)
-            if (longestLength > 2) // Ignore very short strings
-            {
-                byte[] payload = new byte[longestLength];
-                Buffer.BlockCopy(data, longestStart, payload, 0, longestLength);
-                return Encoding.ASCII.GetString(payload).Trim();
-            }
-
-            return "";
+            Console.ResetColor();
+            lastDirection = direction; // Keep track for the next incoming packet
         }
 
     }
