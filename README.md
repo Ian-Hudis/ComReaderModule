@@ -3,6 +3,8 @@
 A simple program for Reading USB com port data without occupying the com port. Program uses USBPcap.exe. Will later make this into a library to use for other projects.
 To Run the application , you will need to have USBPcap installed and running on your system. You can download it from the official website: https://desowin.org/usbpcap/
 
+Notice: If you are using this software commercially or are basing it off something you are using commercially please do no use the USBPCAP. Instead please buy a license from a commercial sniffer and then plug it into this software in the USBSniff.cs class file. It should be as simple as swapping the drivers out.
+
 The COM Reader Module is a software utility designed to monitor USB COM port communication without assuming control of the port. Its primary function is to capture incoming communication data and preserve that information for subsequent review, troubleshooting, or verification. The application requires both USBPcap and the appropriate .NET runtime to be installed to operate as intended.
 Software Function: The COM Reader Module monitors USB COM port traffic records the communication data detected during operation, and saves that data for troubleshooting, process verification, or later analysis. The application performs this function without taking control of the COM port itself.
 
