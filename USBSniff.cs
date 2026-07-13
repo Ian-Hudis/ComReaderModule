@@ -113,7 +113,7 @@ namespace ComReaderModule
                     }
 
                     // 2. Use the DataConstructor helper to extract the precise payload window
-                    byte[] rawPayload = DataConstructor.ExtractRawPayload(packetData);
+                    byte[] rawPayload = DataConstructor.ExtractRawPayload(packetData, out string hardwareIdentifier);
                     if (rawPayload == null || rawPayload.Length == 0) continue;
 
                     // 3. Convert only the valid payload bytes into text
@@ -132,7 +132,7 @@ namespace ComReaderModule
                     // 4. Print clean lines matching Hercules formatting
                     if (!string.IsNullOrWhiteSpace(extractedText))
                     {
-                        PrintAndLogMessage(extractedText, direction);
+                        PrintAndLogMessage(extractedText, direction, hardwareIdentifier);
                     }
                 }
             }
@@ -226,28 +226,36 @@ namespace ComReaderModule
         }
 
         private DataDirection? lastDirection = null;
+        private DateTime? lastMessageTime = null; // Tracks the idle duration between packets
 
-        private void PrintAndLogMessage(string message, DataDirection direction) // log the data
+        private void PrintAndLogMessage(string message, DataDirection direction, string hardwareIdentifier) // log the data
         {
-            string label = direction == DataDirection.PcToMachine ? "[PC] " : "[MACHINE] "; // sets the prefix
+            string label = direction == DataDirection.PcToMachine ? "[PC] " : $"[{hardwareIdentifier}] "; // sets the prefix
             ConsoleColor color = direction == DataDirection.PcToMachine ? ConsoleColor.Magenta : ConsoleColor.Gray; // sets terminal color
 
             Console.ForegroundColor = color;
 
+            DateTime now = DateTime.Now;
+
+            // Check if more than 8 seconds have elapsed since the last packet
+            bool isTimeout = lastMessageTime != null && (now - lastMessageTime.Value).TotalSeconds > 8;
+
             if (lastDirection == null)
             {
                 // First packet ever received: print the initial prefix label
-                Console.Write(label);
-                datalog.LogData(label);
+                string timestampHeader = now.ToString("MM-dd hh:mm tt") + " " + label;
+                Console.Write(timestampHeader);
+                datalog.LogData(timestampHeader);
             }
-            else if (direction != lastDirection)
+            else if (direction != lastDirection || isTimeout)
             {
                 // Direction changed: wrap up the previous sender's line, break down, and print the new label prefix
                 Console.WriteLine();
                 datalog.LogData(Environment.NewLine);
 
-                Console.Write(label);
-                datalog.LogData(label);
+                string timestampHeader = now.ToString("MM-dd hh:mm tt") + " " + label;
+                Console.Write(timestampHeader);
+                datalog.LogData(timestampHeader);
             }
 
             // 2. Continuous Writing: Always write the actual message data block text
@@ -256,6 +264,7 @@ namespace ComReaderModule
 
             Console.ResetColor();
             lastDirection = direction; // Keep track for the next incoming packet
+            lastMessageTime = now;
         }
 
     }
