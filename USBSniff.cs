@@ -193,29 +193,6 @@ namespace ComReaderModule
             return inputdata;
         }
 
-        /*
-        private void FindIndexBit(byte[] data)
-        {
-            string rawText = Encoding.ASCII.GetString(data);
-
-            if (rawText.Contains("MEAS") || rawText.Contains("USBS"))
-            {
-                // 2. We found a valid packet! Let's find the Port ID.
-                // Usually it's in the first 30 bytes.
-                Console.WriteLine($"--- Packet Found! Length: {data.Length} ---");
-
-                // This loop looks for the number '3' in the header
-                for (int i = 0; i < Math.Min(data.Length, 40); i++)
-                {
-                    if (data[i] == 3)
-                    {
-                        Console.WriteLine($"Found '3' at Index: {i}");
-                    }
-                }
-            }
-        }
-        */
-
         private readonly DataLogging datalog = new(); // this is the object for storing the data
 
 
@@ -224,9 +201,10 @@ namespace ComReaderModule
             PcToMachine,
             MachineToPc
         }
+        private DataDirection? lastDirection = null; // for knowing if you are reading an input or output
 
-        private DataDirection? lastDirection = null;
         private DateTime? lastMessageTime = null; // Tracks the idle duration between packets
+
 
         private void PrintAndLogMessage(string message, DataDirection direction, string hardwareIdentifier) // log the data
         {

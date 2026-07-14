@@ -11,7 +11,7 @@ namespace ComReaderModule
     internal static class DataConstructor
     {
 
-        //! written by ai please test
+        //! written by ai but tested
 #pragma warning disable CS8603 // Possible null reference return.
         public static byte[] ExtractRawPayload(byte[] data, out string hardwareIdentifier)
         {
@@ -106,6 +106,6 @@ namespace ComReaderModule
             return hasPrintableContent ? extractedSegment : null;
         }
 #pragma warning restore CS8603 // Possible null reference return.
-        //! written by ai please test
+        //! written by ai but tested
     }
 }
