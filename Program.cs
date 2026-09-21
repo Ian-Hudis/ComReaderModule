@@ -11,7 +11,6 @@ namespace ComReaderModule
     class Program
     {
         static void Main(string[] args)
-
         {
             USBSniff usbSniffer = new();
             usbSniffer.Start();
