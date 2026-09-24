@@ -36,8 +36,4 @@ Notes for AI agents editing this repo
 - For multi-file or cross-cutting changes, log a short plan and update claude.md and FileIndex.md.
 - ALWAYS include the definition-of-done checklist in PR descriptions.
 
-Contact/Repo metadata
-- Remote origin: https://github.com/Ian-Hudis/ComReaderModule
-- Branch: main
-
-Last updated: 2026-05-21
+Last updated: 2026-09-22

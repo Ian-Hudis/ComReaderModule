@@ -8,6 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="UIData.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="UIData.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SharpPcap" Version="6.3.1" />
   </ItemGroup>
 

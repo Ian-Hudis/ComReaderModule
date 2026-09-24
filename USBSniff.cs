@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ExactMachineDemoDash.ExactEpoxy;
+using System;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
@@ -16,11 +17,22 @@ namespace ComReaderModule
         private readonly StringBuilder _lineBuffer = new();
         private bool _isRunning;
 
+        public static bool Runmode = false;
 
         public void Start()
         {
 
             ConfigerationData configdata = ReadConfigFile();
+
+            if (configdata.Runmode.Contains("true"))
+            {
+                Runmode = true;
+            }
+            else
+            {
+                Runmode = false;
+            }
+            Console.WriteLine("DebugMode: " + Runmode);
 
             Console.WriteLine("Starting autonomous USB sniffer...");
 
@@ -142,6 +154,8 @@ namespace ComReaderModule
             public string toolPath;
             public string toolID;
             public string location;
+
+            public string Runmode;
         }
 
         private static ConfigerationData ReadConfigFile()
@@ -150,8 +164,9 @@ namespace ComReaderModule
             {
                 location = @"C:\Program Files\USBPcap\", // default location
                 toolPath = @"C:\Program Files\USBPcap\USBPcapCMD.exe", // default location
-                toolID = "USBPcap1" // default ID
-            };
+                toolID = "USBPcap1", // default ID
+                Runmode = "true" // default run mode
+            }; 
 
             string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config.ini");
             if (File.Exists(configPath))
@@ -182,6 +197,10 @@ namespace ComReaderModule
                     if (config.TryGetValue("USBID", out var customId))
                     {
                         inputdata.toolID = customId;
+                    }
+                    if (config.TryGetValue("DebugMode", out var runmode))
+                    {
+                        inputdata.Runmode = runmode;
                     }
                 }
                 catch (Exception ex)
@@ -223,22 +242,25 @@ namespace ComReaderModule
                 // First packet ever received: print the initial prefix label
                 string timestampHeader = now.ToString("MM-dd hh:mm tt") + " " + label;
                 Console.Write(timestampHeader);
-                datalog.LogData(timestampHeader);
+                datalog.LogData(timestampHeader, Runmode);
             }
             else if (direction != lastDirection || isTimeout)
             {
                 // Direction changed: wrap up the previous sender's line, break down, and print the new label prefix
                 Console.WriteLine();
-                datalog.LogData(Environment.NewLine);
+                datalog.LogData(Environment.NewLine, Runmode);
 
                 string timestampHeader = now.ToString("MM-dd hh:mm tt") + " " + label;
                 Console.Write(timestampHeader);
-                datalog.LogData(timestampHeader);
+                datalog.LogData(timestampHeader, Runmode);
             }
 
             // 2. Continuous Writing: Always write the actual message data block text
             Console.Write(message);
-            datalog.LogData(message);
+            datalog.LogData(message, Runmode); //
+
+            DataInterpreter.DataExtraction(message, direction);
+
 
             Console.ResetColor();
             lastDirection = direction; // Keep track for the next incoming packet

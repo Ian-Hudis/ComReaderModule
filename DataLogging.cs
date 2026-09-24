@@ -9,6 +9,41 @@ namespace ComReaderModule
     {
         private string _currentLogPath = "";
 
+
+        public void LogData(string data, bool runmode)
+        {
+            if (!runmode) // debug mode set to false means the software will not log data 
+            {
+                return;
+            }
+            // If the path hasn't been set up yet, run initialization
+            if (string.IsNullOrEmpty(_currentLogPath))
+            {
+                InitializeLogFile();
+            }
+
+            // If initialization failed completely, don't crash, just exit
+            if (string.IsNullOrEmpty(_currentLogPath))
+            {
+                return;
+            }
+
+            try
+            {
+                // Open the file with options that force it to bypass cache and write instantly
+                using FileStream fs = new(_currentLogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                using StreamWriter sw = new(fs);
+                sw.AutoFlush = true; // Crucial: forces Windows to write to disk immediately
+                sw.Write(data);
+            }
+            catch (Exception ex)
+            {
+                // If it's failing to write, this will say why.
+                Console.WriteLine($"\n[LOG ERROR] Failed to write data: {ex.Message}");
+            }
+        }
+
+
         private void InitializeLogFile()
         {
             try
@@ -44,32 +79,6 @@ namespace ComReaderModule
             catch (Exception ex)
             {
                 Console.WriteLine($"\n[LOG ERROR] Failed to initialize log: {ex.Message}");
-            }
-        }
-
-        public void LogData(string data)
-        {
-            // If the path hasn't been set up yet, run initialization
-            if (string.IsNullOrEmpty(_currentLogPath))
-            {
-                InitializeLogFile();
-            }
-
-            // If initialization failed completely, don't crash, just exit
-            if (string.IsNullOrEmpty(_currentLogPath)) return;
-
-            try
-            {
-                // Open the file with options that force it to bypass cache and write instantly
-                using FileStream fs = new(_currentLogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-                using StreamWriter sw = new(fs);
-                sw.AutoFlush = true; // Crucial: forces Windows to write to disk immediately
-                sw.Write(data);
-            }
-            catch (Exception ex)
-            {
-                // If it's failing to write, this will say why.
-                Console.WriteLine($"\n[LOG ERROR] Failed to write data: {ex.Message}");
             }
         }
     }
