@@ -1,5 +1,4 @@
-﻿using ExactMachineDemoDash.ExactEpoxy;
-using System;
+﻿using System;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
@@ -7,7 +6,6 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ComReaderModule
 {

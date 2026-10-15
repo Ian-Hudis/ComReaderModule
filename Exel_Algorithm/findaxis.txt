@@ -1,0 +1,4 @@
+=IF(Log3Table[@Device]="[PC]",0,LET(
+  clean_hex, IFERROR(TEXTAFTER(F2, "992140"), ""),
+  IF(clean_hex="", 0, INT(LEN(clean_hex) / 14))
+))

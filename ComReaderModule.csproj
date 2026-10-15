@@ -2,13 +2,18 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="UIData.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Exel_Algorithm\Filter.txt" />
+    <Compile Include="Exel_Algorithm\findZPosition.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +28,12 @@
 
   <ItemGroup>
     <None Update="Config.ini">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="sampledata\DataReference09012026.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="sampledata\DataReference09252026.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

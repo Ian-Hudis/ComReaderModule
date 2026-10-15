@@ -1,0 +1,12 @@
+=LET(
+  prev, IF(ISNUMBER(I1), I1, 0),
+  IF(H2<1, prev, IFERROR(LET(
+    clean_hex, TEXTAFTER(F2, "992140"),
+    axis_hex, MID(clean_hex, 2, 14),
+    raw, RIGHT(axis_hex, 8),
+    swapped, MID(raw,7,2)&MID(raw,5,2)&MID(raw,3,2)&MID(raw,1,2),
+    dec, HEX2DEC(swapped),
+    result, IF(dec >= 2147483648, dec - 4294967296, dec) / 512,
+    IF(ABS(result) > 1000, prev, result)
+  ), prev))
+)

@@ -1,0 +1,11 @@
+﻿=LET(
+  prev, IF(ISNUMBER(K7), K7, 0),
+  IF(H8<2, prev, IFERROR(LET(
+    clean_hex, UPPER(TEXTAFTER(F8, "#9921")),
+    axis_hex, MID(clean_hex, 25, 8),
+    swapped, MID(axis_hex,7,2)&MID(axis_hex,5,2)&MID(axis_hex,3,2)&MID(axis_hex,1,2),
+    dec, HEX2DEC(swapped),
+    result, IF(dec >= 2147483648, dec - 4294967296, dec) / 512,
+    IF(ABS(result) > 1000, prev, result)
+  ), prev))
+)

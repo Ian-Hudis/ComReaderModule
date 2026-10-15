@@ -1,17 +1,18 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using static ExactMachineDemoDash.ExactEpoxy.DataInterpreter;
 
 namespace ComReaderModule
 {
     public static class FileLocation
     {
-        public const string UIfilePath = "UIData.json";
+        // Use absolute path to ensure the JSON file is located next to the running executable
+        public static readonly string UIfilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory ?? string.Empty, "UIData.json");
         public static readonly object FileLock = new();
     }
 
@@ -31,13 +32,13 @@ namespace ComReaderModule
         }
 
 
-        // Store the last values to detect changes
+        // Store the last values to detect changes. Use sentinel values so the first write is always performed.
 
-        private string _lastMachineStatus = string.Empty;
-        private int _lastPartCount = 0;
-        private double _lastVariable1 = 0;
-        private double _lastVariable2 = 0;
-        private double _lastVariable3 = 0;
+        private string? _lastMachineStatus = null;
+        private int _lastPartCount = int.MinValue;
+        private double _lastVariable1 = double.NaN;
+        private double _lastVariable2 = double.NaN;
+        private double _lastVariable3 = double.NaN;
 
         public void UpdateJsonData(ControllerData data)
         {

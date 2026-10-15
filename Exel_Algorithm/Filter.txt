@@ -1,0 +1,1 @@
+﻿=SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(E2, "o", ""), "O", ""), "P", ""), "p", "")

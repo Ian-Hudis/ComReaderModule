@@ -1,13 +1,7 @@
 # ComReaderModule Project Rules
 
 ## Architectural Constraints
-- **Pattern:** Logic must be decoupled from UI. Move Delphi event logic into Service classes.
-- **Threading:** Strictly use `async/await` and `Task.Run` for database/IO.
 - **Designer Safety:** NEVER modify `*.Designer.cs` files manually.
-
-## Data Access
-- **Technology:** Strictly use **Dapper**. No Entity Framework.
-- **Protocol:** All queries must be parameterized. Use `QueryAsync`.
 
 ## Coding Style
 - **C# 14:** Use Primary Constructors, collection expressions, and file-scoped namespaces.
